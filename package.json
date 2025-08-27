@@ -5,8 +5,8 @@
   "main": "dist/index.js",
   "type": "module",
   "bin": {
-    "tfxb": "./bin/cli.js",
-    "tfx-builder": "./bin/cli.js"
+    "tfxb": "bin/cli.js",
+    "tfx-builder": "bin/cli.js"
   },
   "files": [
     "dist",
@@ -39,5 +39,14 @@
   },
   "peerDependencies": {
     "typescript": ">=5.0.0"
-  }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tfxhub/builder.git"
+  },
+  "types": "./dist/index.d.ts",
+  "bugs": {
+    "url": "https://github.com/tfxhub/builder/issues"
+  },
+  "homepage": "https://github.com/tfxhub/builder#readme"
 }
