@@ -1,12 +1,12 @@
 {
   "name": "@tfxhub/builder",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Build tools for FiveM TypeScript resources",
   "main": "dist/index.js",
   "type": "module",
   "bin": {
-    "tfxb": "bin/cli.js",
-    "tfx-builder": "bin/cli.js"
+    "tfxb": "dist/cli.js",
+    "tfx-builder": "dist/cli.js"
   },
   "files": [
     "dist",
