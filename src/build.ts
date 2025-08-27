@@ -1,11 +1,8 @@
-import { exec as execCb } from 'child_process';
 import esbuild, { type BuildOptions, type Plugin } from 'esbuild';
-import { promisify } from 'util';
 import { clear } from './clear.js';
 import { generateFxManifest } from './manifest.js';
 import { generateTypes } from './types.js';
-
-const exec = promisify(execCb);
+import { green, red, cyan } from 'kleur/colors';
 
 /**
  * Build context configuration for client or server
@@ -87,8 +84,12 @@ export async function build(options: BuildOptionsConfig = {}): Promise<void> {
                 let count = 0;
                 buildApi.onEnd((result) => {
                     const status = count === 0 ? 'built' : 'rebuilt';
-                    const message = result.errors.length === 0 ? `files ${status} successfully.` : `${status} failed.`;
-                    console.log(`${context.name.charAt(0).toUpperCase() + context.name.slice(1)} ${message}`);
+                    const name = context.name.charAt(0).toUpperCase() + context.name.slice(1);
+                    if (result.errors.length === 0) {
+                        !production && console.log(green(`✅ ${name} ${status} successfully`));
+                    } else {
+                        throw new Error(red(`❌ ${name} ${status} with errors!`));
+                    }
                     count++;
 
                     if (i + 1 >= contexts.length) {
@@ -96,10 +97,9 @@ export async function build(options: BuildOptionsConfig = {}): Promise<void> {
                             generateFxManifest({ cwd }).catch(console.error);
                         }
                         if (!production) {
-                            console.log('\nWatching for file changes...');
+                            console.log(cyan('🕒 Watching for file changes...'));
                         }
                         if (production && shouldGenerateTypes) {
-                            console.log('\nGenerating types...\n');
                             generateTypes({ cwd });
                         }
                     }

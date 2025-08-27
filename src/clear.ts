@@ -23,6 +23,4 @@ export function clear(options: ClearOptions = {}): void {
             // Ignore errors if path doesn't exist
         }
     }
-
-    console.log('All generated files cleared.');
 }
