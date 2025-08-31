@@ -66,9 +66,12 @@ async function main() {
         switch (selected.cmd) {
             case 'build': {
                 const spinner = ora('Building...').start();
-                const successMessage = selected.prod || isProductionFlag ? 'Client and Server files built succesfully!' : 'Started development with watch mode!';
+                const successMessage = selected.prod || isProductionFlag ? 'FiveM resource files built succesfully' : 'Started development with watch mode';
                 try {
-                    await build({ production: Boolean(selected.prod || isProductionFlag) });
+                    await build({ 
+                        production: Boolean(selected.prod || isProductionFlag),
+                        spinner
+                    });
                     spinner.succeed(green(successMessage));
                 } catch (e) {
                     spinner.fail(red('Build failed'));
