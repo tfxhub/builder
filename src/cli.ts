@@ -93,7 +93,7 @@ async function main() {
             case 'manifest': {
                 const spinner = ora('Generating fxmanifest.lua...').start();
                 try {
-                    await generateFxManifest();
+                    await generateFxManifest({ production: isProductionFlag });
                     spinner.succeed(green('fxmanifest.lua generated'));
                 } catch (e) {
                     spinner.fail(red('Manifest generation failed'));

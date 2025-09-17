@@ -7,6 +7,7 @@ import { spawn, type ChildProcess } from 'child_process';
 import { existsSync } from 'fs';
 import { join } from 'path';
 import ora from 'ora';
+import { createInterface } from 'readline';
 
 /**
  * Build context configuration for client or server
@@ -89,7 +90,7 @@ function spawnWebBuild(cwd: string, production: boolean, spinner?: any): Promise
         const childProcess = spawn(command, {
             cwd: webPath,
             shell: true,
-            stdio: production ? ['inherit', 'pipe', 'pipe'] : ['inherit', 'inherit', 'inherit']
+            stdio: production ? ['inherit', 'pipe', 'pipe'] : ['inherit', 'pipe', 'pipe']
         });
 
         if (production) {
@@ -119,28 +120,16 @@ function spawnWebBuild(cwd: string, production: boolean, spinner?: any): Promise
                 }
             });
         } else {
-            let hasOutput = false;
-
             childProcess.stdout?.on('data', (data) => {
                 const output = data.toString().trim();
-                if (output) {
-                    if (!hasOutput) {
-                        hasOutput = true;
-                        if (webSpinner) webSpinner.stop();
-                        console.log('');
-                    }
-                    console.log(yellow(`[WEB] ${output}`));
+                if (output && output.includes('hmr update')) {
+                    console.log(cyan(`[WEB] ${output}`));
                 }
             });
 
             childProcess.stderr?.on('data', (data) => {
                 const output = data.toString().trim();
                 if (output) {
-                    if (!hasOutput) {
-                        hasOutput = true;
-                        if (webSpinner) webSpinner.stop();
-                        console.log('');
-                    }
                     console.error(red(`[WEB ERROR] ${output}`));
                 }
             });
@@ -154,9 +143,8 @@ function spawnWebBuild(cwd: string, production: boolean, spinner?: any): Promise
             setTimeout(() => {
                 if (webSpinner) {
                     webSpinner.stop();
-                    console.log(green('✔ Web development server started'));
+                    console.log(green('✔ Web development server started at http://localhost:3000/'));
                 }
-                if (hasOutput) console.log('');
                 
                 if (spinner) {
                     spinner.start('Building FiveM resources...');
@@ -165,6 +153,112 @@ function spawnWebBuild(cwd: string, production: boolean, spinner?: any): Promise
                 resolve(childProcess);
             }, 2000);
         }
+    });
+}
+
+/**
+ * Spawns both web dev server and build --watch processes (development only)
+ * and resolves once both are ready.
+ */
+function spawnWebProcesses(
+    cwd: string,
+    spinner?: any
+): Promise<{ devProc: ChildProcess; buildProc: ChildProcess }> {
+    return new Promise((resolve, reject) => {
+        const webPath = join(cwd, 'web');
+
+        const devProc = spawn('npm run dev', {
+            cwd: webPath,
+            shell: true,
+            stdio: ['inherit', 'pipe', 'pipe']
+        });
+
+        const buildProc = spawn('npm run build -- --watch', {
+            cwd: webPath,
+            shell: true,
+            stdio: ['inherit', 'pipe', 'pipe']
+        });
+
+        let devReady = false;
+        let buildReady = false;
+
+        const tryResolve = () => {
+            if (devReady && buildReady) {
+                resolve({ devProc, buildProc });
+            }
+        };
+
+        if (devProc.stdout) {
+            const rlDev = createInterface({ input: devProc.stdout });
+            rlDev.on('line', (line: string) => {
+                const lower = line.toLowerCase();
+                if (!devReady) {
+                    if (lower.includes('localhost')) {
+                        devReady = true;
+                        tryResolve();
+                    }
+                    return;
+                }
+
+                if (lower.includes('hmr')) {
+                    console.log(cyan(`[WEB SERVER] ${line}`));
+                }
+            });
+        }
+
+        devProc.stderr?.on('data', (data) => {
+            const output = data.toString().trim();
+            if (output) {
+                console.error(red(`[WEB ERROR] ${output}`));
+            }
+        });
+
+        devProc.on('error', (error) => {
+            console.error(red(`❌ Web dev process error: ${error.message}`));
+            reject(error);
+        });
+
+        devProc.on('exit', (code) => {
+            if (!devReady) {
+                reject(new Error(`Web dev process exited before ready (code ${code})`));
+            }
+        });
+
+        if (buildProc.stdout) {
+            const rlBuild = createInterface({ input: buildProc.stdout });
+            rlBuild.on('line', (line: string) => {
+                const lower = line.toLowerCase();
+                if (!buildReady) {
+                    if (lower.includes('built in')) {
+                        buildReady = true;
+                        tryResolve();
+                    }
+                    return;
+                }
+
+                if (lower.includes('built in')) {
+                    console.log(green('[WEB BUILD] - Changes detected, files rebuilt'));
+                }
+            });
+        }
+
+        buildProc.stderr?.on('data', (data) => {
+            const output = data.toString().trim();
+            if (output) {
+                console.error(red(`[WEB ERROR] ${output}`));
+            }
+        });
+
+        buildProc.on('error', (error) => {
+            console.error(red(`❌ Web build error: ${error.message}`));
+            reject(error);
+        });
+
+        buildProc.on('exit', (code) => {
+            if (!buildReady) {
+                reject(new Error(`Web build exited before ready (code ${code})`));
+            }
+        });
     });
 }
 
@@ -189,13 +283,16 @@ export async function build(options: BuildOptionsConfig = {}): Promise<void> {
 
     clear({ cwd, paths: [distPathRelative] });
 
-    let webProcess: ChildProcess | null = null;
+    let webDevProcess: ChildProcess | null = null;
+    let webWatchBuildProcess: ChildProcess | null = null;
     if (includeWebBuild) {
         try {
             if (production) {
                 await spawnWebBuild(cwd, production, spinner);
             } else {
-                webProcess = await spawnWebBuild(cwd, production, spinner);
+                const procs = await spawnWebProcesses(cwd, spinner);
+                webDevProcess = procs.devProc;
+                webWatchBuildProcess = procs.buildProc;
             }
         } catch (error) {
             console.error(red('❌ Failed to start web build process'));
@@ -203,9 +300,7 @@ export async function build(options: BuildOptionsConfig = {}): Promise<void> {
         }
     }
 
-    if (spinner && includeWebBuild && production) {
-        spinner.start('Building FiveM resources...');
-    } else if (spinner && !includeWebBuild) {
+    if (spinner) {
         spinner.start('Building FiveM resources...');
     }
 
@@ -230,7 +325,7 @@ export async function build(options: BuildOptionsConfig = {}): Promise<void> {
 
                     if (i + 1 >= contexts.length) {
                         if (generateManifest) {
-                            generateFxManifest({ cwd }).catch(console.error);
+                            generateFxManifest({ cwd, production }).catch(console.error);
                         }
                         if (!production) {
                             console.log(cyan('🕒 Watching for file changes...'));
@@ -262,8 +357,11 @@ export async function build(options: BuildOptionsConfig = {}): Promise<void> {
     if (!production) {
         const cleanup = () => {
             console.log(yellow('\n🔄 Shutting down build processes...'));
-            if (webProcess && !webProcess.killed) {
-                webProcess.kill('SIGTERM');
+            if (webDevProcess && !webDevProcess.killed) {
+                webDevProcess.kill('SIGTERM');
+            }
+            if (webWatchBuildProcess && !webWatchBuildProcess.killed) {
+                webWatchBuildProcess.kill('SIGTERM');
             }
             process.exit(0);
         };
