@@ -52,7 +52,7 @@ export async function generateFxManifest(options: ManifestOptions = {}): Promise
         fxmanifestJsonPath = 'fxmanifest.json',
         outputPath = 'fxmanifest.lua',
         createYarnInstalled = true,
-        production = false
+        production = false,
     } = options;
 
     const packageJson = await readJSON<PackageMeta>(join(cwd, packageJsonPath));
@@ -62,9 +62,7 @@ export async function generateFxManifest(options: ManifestOptions = {}): Promise
 
     if ('ui_page_dev' in processedManifest) {
         if (production) {
-            if (!('ui_page' in processedManifest)) {
-                delete processedManifest.ui_page_dev;
-            }
+            delete processedManifest.ui_page_dev;
         } else {
             processedManifest.ui_page = processedManifest.ui_page_dev;
             delete processedManifest.ui_page_dev;
@@ -112,7 +110,7 @@ export async function generateFxManifest(options: ManifestOptions = {}): Promise
                 timeZone: 'UTC',
                 timeStyle: 'long',
                 dateStyle: 'full',
-            })
+            }),
         );
     }
 }
