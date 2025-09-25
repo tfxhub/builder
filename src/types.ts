@@ -20,7 +20,7 @@ export interface TypesOptions {
 export async function generateTypes(options: TypesOptions = {}): Promise<void> {
     const { cwd = process.cwd(), sourceDirs = ['server', 'client', 'common'] } = options;
 
-    const promises = sourceDirs.map(dir => {
+    const promises = sourceDirs.map((dir) => {
         const dirPath = join(cwd, 'src', dir);
         return exec(`cd ${dirPath} && tsc`);
     });

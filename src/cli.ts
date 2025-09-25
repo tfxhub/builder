@@ -9,9 +9,7 @@ import { green, yellow, red } from 'kleur/colors';
 import prompts from 'prompts';
 
 const command = process.argv[2];
-const isProductionFlag =
-    process.argv.includes('--production') ||
-    process.argv.includes('-P');
+const isProductionFlag = process.argv.includes('--production') || process.argv.includes('-P');
 const isInteractive = process.stdin.isTTY && !process.env.CI;
 
 async function askInteractive() {
@@ -66,11 +64,14 @@ async function main() {
         switch (selected.cmd) {
             case 'build': {
                 const spinner = ora('Building...').start();
-                const successMessage = selected.prod || isProductionFlag ? 'FiveM resource files built succesfully' : 'Started development with watch mode';
+                const successMessage =
+                    selected.prod || isProductionFlag
+                        ? 'FiveM resource files built succesfully'
+                        : 'Started development with watch mode';
                 try {
-                    await build({ 
+                    await build({
                         production: Boolean(selected.prod || isProductionFlag),
-                        spinner
+                        spinner,
                     });
                     spinner.succeed(green(successMessage));
                 } catch (e) {

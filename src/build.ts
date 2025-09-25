@@ -1,7 +1,6 @@
 import esbuild, { type BuildOptions, type Plugin } from 'esbuild';
 import { clear } from './clear.js';
 import { generateFxManifest } from './manifest.js';
-import { generateTypes } from './types.js';
 import { green, red, cyan, yellow } from 'kleur/colors';
 import { spawn, type ChildProcess } from 'child_process';
 import { existsSync } from 'fs';
@@ -33,8 +32,6 @@ export interface BuildOptionsConfig {
     contexts?: ContextItem[];
     /** Whether to generate manifest after build */
     generateManifest?: boolean;
-    /** Whether to generate types after production build */
-    generateTypes?: boolean;
     /** Whether to include web build (auto-detected if not specified) */
     includeWebBuild?: boolean;
     /** Spinner instance for output management */
@@ -78,24 +75,23 @@ function spawnWebBuild(cwd: string, production: boolean, spinner?: any): Promise
     return new Promise((resolve, reject) => {
         const webPath = join(cwd, 'web');
         const command = production ? 'npm run build' : 'npm run dev';
-        
+
         let webSpinner: any = null;
-        
+
         if (production) {
             webSpinner = ora('Building web...').start();
         } else {
             webSpinner = ora('Starting web development server...').start();
         }
-        
+
         const childProcess = spawn(command, {
             cwd: webPath,
             shell: true,
-            stdio: production ? ['inherit', 'pipe', 'pipe'] : ['inherit', 'pipe', 'pipe']
+            stdio: production ? ['inherit', 'pipe', 'pipe'] : ['inherit', 'pipe', 'pipe'],
         });
 
         if (production) {
-            childProcess.stdout?.on('data', () => {
-            });
+            childProcess.stdout?.on('data', () => {});
 
             childProcess.stderr?.on('data', (data) => {
                 const output = data.toString().trim();
@@ -145,11 +141,11 @@ function spawnWebBuild(cwd: string, production: boolean, spinner?: any): Promise
                     webSpinner.stop();
                     console.log(green('✔ Web development server started at http://localhost:3000/'));
                 }
-                
+
                 if (spinner) {
                     spinner.start('Building FiveM resources...');
                 }
-                
+
                 resolve(childProcess);
             }, 2000);
         }
@@ -160,23 +156,20 @@ function spawnWebBuild(cwd: string, production: boolean, spinner?: any): Promise
  * Spawns both web dev server and build --watch processes (development only)
  * and resolves once both are ready.
  */
-function spawnWebProcesses(
-    cwd: string,
-    spinner?: any
-): Promise<{ devProc: ChildProcess; buildProc: ChildProcess }> {
+function spawnWebProcesses(cwd: string, spinner?: any): Promise<{ devProc: ChildProcess; buildProc: ChildProcess }> {
     return new Promise((resolve, reject) => {
         const webPath = join(cwd, 'web');
 
         const devProc = spawn('npm run dev', {
             cwd: webPath,
             shell: true,
-            stdio: ['inherit', 'pipe', 'pipe']
+            stdio: ['inherit', 'pipe', 'pipe'],
         });
 
         const buildProc = spawn('npm run build -- --watch', {
             cwd: webPath,
             shell: true,
-            stdio: ['inherit', 'pipe', 'pipe']
+            stdio: ['inherit', 'pipe', 'pipe'],
         });
 
         let devReady = false;
@@ -273,9 +266,8 @@ export async function build(options: BuildOptionsConfig = {}): Promise<void> {
         production = false,
         contexts = defaultContexts,
         generateManifest = true,
-        generateTypes: shouldGenerateTypes = true,
         includeWebBuild = hasWebFolder(cwd),
-        spinner
+        spinner,
     } = options;
 
     const srcPath = `${cwd}/${srcPathRelative}`;
@@ -329,9 +321,6 @@ export async function build(options: BuildOptionsConfig = {}): Promise<void> {
                         }
                         if (!production) {
                             console.log(cyan('🕒 Watching for file changes...'));
-                        }
-                        if (production && shouldGenerateTypes) {
-                            generateTypes({ cwd });
                         }
                     }
                 });
