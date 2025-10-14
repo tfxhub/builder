@@ -60,6 +60,8 @@ export async function generateFxManifest(options: ManifestOptions = {}): Promise
 
     const processedManifest = { ...fxmanifestJson };
 
+    processedManifest.env = production ? 'prod' : 'dev';
+
     if ('ui_page_dev' in processedManifest) {
         if (production) {
             delete processedManifest.ui_page_dev;
